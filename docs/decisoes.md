@@ -16,3 +16,8 @@
 - Entrada recusada, conta inexistente e conta bloqueada têm a mesma resposta (401 com a mesma mensagem).
 - Protecção CSRF activa; o token é devolvido em GET /api/auth/csrf e renovado ao entrar.
 - O identificador da instituição nunca vem do corpo ou do URL de um pedido: vem sempre da sessão, através de ContextoInstituicao.
+- Registo livre com verificação por email: o registo pede só nome e email; a palavra-passe é definida ao activar a conta, na página aberta pela ligação do email (evita o pré-sequestro de contas).
+- Os tokens de conta guardam-se na base só como SHA-256, são de uso único, expiram e há um intervalo mínimo entre envios.
+- O registo responde sempre igual, exista ou não a conta (não revela que emails estão registados).
+- Palavra-passe: mínimo de 10 caracteres e máximo de 72 bytes (limite do BCrypt).
+- O envio de email está atrás da interface EnviadorDeEmail; por agora só existe o modo registo (a ligação aparece no registo da aplicação).

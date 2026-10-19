@@ -287,4 +287,12 @@ class AutenticacaoTest {
         assertThat(saida.getResponse().getStatus()).isEqualTo(204);
         assertThat(eu(sessao).getResponse().getStatus()).isEqualTo(401);
     }
+
+    @Test
+    void palavraPasseComMaisDe72BytesDaAMesmaRespostaQueUmaErrada() throws Exception {
+        MvcResult resultado = entrar(email, "a".repeat(100));
+
+        assertThat(resultado.getResponse().getStatus()).isEqualTo(401);
+        assertThat(corpo(resultado)).contains("inválidos");
+    }
 }

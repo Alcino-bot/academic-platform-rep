@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import mz.plataformaacademica.comum.AcessoNegadoException;
 import mz.plataformaacademica.comum.CredenciaisInvalidasException;
+import mz.plataformaacademica.comum.PoliticaDePalavraPasse;
 
 @Service
 public class ServicoDeAutenticacao {
@@ -41,6 +42,10 @@ public class ServicoDeAutenticacao {
     }
 
     public PrincipalPad entrar(String email, String palavraPasse) {
+        if (!PoliticaDePalavraPasse.cabeNoBcrypt(palavraPasse)) {
+            codificador.matches("palavra-passe-ficticia", hashFicticio);
+            throw new CredenciaisInvalidasException(MENSAGEM_CREDENCIAIS);
+        }
         Optional<RegistoUtilizador> encontrado = repositorio.procurarPorEmail(email);
         if (encontrado.isEmpty()) {
             codificador.matches(palavraPasse, hashFicticio);

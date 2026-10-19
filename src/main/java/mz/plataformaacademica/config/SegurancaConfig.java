@@ -30,6 +30,7 @@ public class SegurancaConfig {
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
             .authorizeHttpRequests(pedidos -> pedidos
                 .requestMatchers("/api/estado", "/api/auth/csrf", "/api/auth/entrar").permitAll()
+                .requestMatchers("/api/contas/registar", "/api/contas/activar", "/api/contas/reenviar-verificacao").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(erros -> erros
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
