@@ -5,3 +5,14 @@
 - IA como assistente; decisões críticas ficam com regras e pessoas.
 - Migrações em ficheiros V*.sql (Flyway); a base de desenvolvimento é descartável e recriável.
 - UTF-8 sem BOM em todos os ficheiros.
+- A instituição activa é escolhida pelo utilizador ao entrar; todos os pedidos seguintes operam nessa instituição.
+- Autenticação por sessões com cookie, guardadas em memória por agora.
+- A biblioteca pública reúne materiais publicados de todas as instituições; os materiais institucionais só são vistos por quem tem vínculo activo na instituição.
+- Toda a pesquisa de materiais passa pela função materiais_visiveis(utilizador).
+- Regras que atravessam várias tabelas ficam na camada de serviço em Java; a base garante o isolamento e a consistência de cada registo.
+- Os papéis e a instituição activa são revalidados a cada pedido; retirar um papel ou terminar um vínculo vale logo no pedido seguinte.
+- Bloqueio de conta após tentativas falhadas, guardado na base (V19): 5 tentativas, 15 minutos.
+- O serviço de entrada não pode ser transaccional: o registo da falha tem de gravar mesmo quando a entrada é recusada.
+- Entrada recusada, conta inexistente e conta bloqueada têm a mesma resposta (401 com a mesma mensagem).
+- Protecção CSRF activa; o token é devolvido em GET /api/auth/csrf e renovado ao entrar.
+- O identificador da instituição nunca vem do corpo ou do URL de um pedido: vem sempre da sessão, através de ContextoInstituicao.
