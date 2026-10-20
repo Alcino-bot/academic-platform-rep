@@ -21,7 +21,7 @@ Regras que atravessam várias tabelas e foram deixadas para o Java de propósito
 
 ## Administração
 
-- [ ] Quem decide sobre um tipo de instituição é administrador geral.
+- [x] Quem decide sobre um tipo de instituição é administrador geral.
 
 ## Decisões de produto ligadas a regras
 

@@ -4,19 +4,20 @@
 
 ## Resumo
 
-A fundação técnica está concluída e verificada. Ainda não há interface nem administração: uma conta nova consegue registar-se, activar-se e entrar, mas não consegue fazer nada de útil, porque não existe forma de criar instituições nem de pedir vínculos.
+A fundação técnica está concluída e verificada. Ainda não há interface. Existe o primeiro administrador geral e a administração de tipos e instituições por API, mas uma conta nova não consegue pedir um vínculo, e os modelos organizacionais ainda só se criam por SQL.
 
 ## O que existe
 
 - **Modelo de dados:** 20 migrações Flyway (V1 a V20), 26 tabelas, 3 funções (`materiais_visiveis`, `registar_falha_login`, `consumir_token`). O isolamento entre instituições é garantido pela base (chaves estrangeiras compostas).
 - **Backend:** Spring Boot 4.1.0, Java 21. Instituições com estados e transições; autenticação por sessão com cookie; instituição activa escolhida ao entrar; papéis revalidados a cada pedido; bloqueio de conta (5 tentativas, 15 minutos); protecção CSRF; registo com verificação por email.
 - **Primeiro administrador geral:** criado no arranque a partir de `ADMIN_EMAIL`, `ADMIN_NOME` e `ADMIN_PALAVRA_PASSE` (sem valores por omissão). Só cria se não existir nenhum administrador geral activo. Depois do primeiro arranque, retirar as variáveis.
-- **Verificação:** 73 testes Java, 235 verificações SQL (21, 38, 58, 52, 35 e 31 por ficheiro) e o guião `scripts/verificar-fluxo.ps1` (24 verificações, 0 falhas).
+- **Administração (só `PAPEL_GLOBAL_ADMIN_GERAL`):** `GET` e `POST /api/administracao/tipos-instituicao`, `POST .../tipos-instituicao/{id}/aprovar` e `/rejeitar`, `GET` e `POST /api/administracao/instituicoes` (cria já ACTIVA a partir de um modelo activo e copia os tipos de unidade) e `POST .../instituicoes/{id}/estado`.
+- **Verificação:** 94 testes Java, 235 verificações SQL (21, 38, 58, 52, 35 e 31 por ficheiro) e o guião `scripts/verificar-fluxo.ps1` (24 verificações, 0 falhas).
 
 ## O que falta
 
 - Interface de utilizador (React ou Thymeleaf: decisão em aberto).
-- Administração: criação de instituições e aprovação de tipos (o primeiro administrador geral já existe, ver abaixo).
+- Administração: criar e activar modelos organizacionais pela API (hoje inserem-se por SQL).
 - Pedidos de vínculo e a sua aprovação.
 - Recuperação de palavra-passe e envio real de email (hoje só existe o modo registo).
 - Biblioteca em Java: submissão, ficheiros, revisão, pesquisa, descarga.
@@ -24,7 +25,7 @@ A fundação técnica está concluída e verificada. Ainda não há interface ne
 
 ## Como se verifica
 
-- `mvn test`: esperado 73 testes, 0 falhas.
+- `mvn test`: esperado 94 testes, 0 falhas.
 - Testes SQL: esperado 21, 38, 58, 52, 35 e 31 verificações `OK` (o script `scripts/ci-sql.sh` confere os números).
 - `scripts/verificar-fluxo.ps1`: esperado `Total de verificacoes com falha: 0`.
 - A integração contínua do GitHub corre os dois primeiros em cada alteração.
@@ -38,4 +39,4 @@ A fundação técnica está concluída e verificada. Ainda não há interface ne
 
 ## Próximo passo
 
-Fase B, item 6: endpoints de administração (criar instituições, aprovar tipos de instituição, mudar estados), com autorização por `PAPEL_GLOBAL_ADMIN_GERAL`.
+Fase B, item 6b: modelos organizacionais pela API (criar um modelo com os seus tipos de unidade e activá-lo), para o ciclo tipo, modelo e instituição se fazer só pela aplicação.

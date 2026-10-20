@@ -25,6 +25,11 @@ public class InstituicaoServico {
 
     @Transactional
     public Instituicao criar(String nome, String sigla, UUID tipoInstituicaoId) {
+        return criar(nome, sigla, tipoInstituicaoId, null);
+    }
+
+    @Transactional
+    public Instituicao criar(String nome, String sigla, UUID tipoInstituicaoId, UUID modeloOrigemId) {
         String nomeLimpo = textoObrigatorio(nome, "O nome é obrigatório");
         String siglaLimpa = textoObrigatorio(sigla, "A sigla é obrigatória");
         if (tipoInstituicaoId == null) {
@@ -36,7 +41,7 @@ public class InstituicaoServico {
             throw new RegraDeNegocioException("O tipo de instituição ainda não foi aprovado");
         }
         try {
-            return instituicoes.saveAndFlush(new Instituicao(nomeLimpo, siglaLimpa, tipo.getId()));
+            return instituicoes.saveAndFlush(new Instituicao(nomeLimpo, siglaLimpa, tipo.getId(), modeloOrigemId));
         } catch (DataIntegrityViolationException e) {
             String causa = String.valueOf(e.getMostSpecificCause().getMessage());
             if (causa.contains("uq_instituicao_nome")) {

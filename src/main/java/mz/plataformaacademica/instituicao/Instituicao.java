@@ -53,6 +53,11 @@ public class Instituicao {
         this.dataCriacao = Instant.now();
     }
 
+    public Instituicao(String nome, String sigla, UUID tipoInstituicaoId, UUID modeloOrigemId) {
+        this(nome, sigla, tipoInstituicaoId);
+        this.modeloOrigemId = modeloOrigemId;
+    }
+
     public void mudarEstado(EstadoInstituicao destino) {
         if (!estado.podeTransitarPara(destino)) {
             throw new RegraDeNegocioException(

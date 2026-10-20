@@ -31,6 +31,7 @@ public class SegurancaConfig {
             .authorizeHttpRequests(pedidos -> pedidos
                 .requestMatchers("/api/estado", "/api/auth/csrf", "/api/auth/entrar").permitAll()
                 .requestMatchers("/api/contas/registar", "/api/contas/activar", "/api/contas/reenviar-verificacao").permitAll()
+                .requestMatchers("/api/administracao/**").hasAuthority("PAPEL_GLOBAL_ADMIN_GERAL")
                 .anyRequest().authenticated())
             .exceptionHandling(erros -> erros
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
