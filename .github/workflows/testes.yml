@@ -1,0 +1,43 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-efemero
+          POSTGRES_DB: plataforma_academica_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DB_PASSWORD: ci-efemero
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: ci-efemero
+      PGDATABASE: plataforma_academica_teste
+    steps:
+      - name: Obter o codigo
+        uses: actions/checkout@v6
+      - name: Preparar o Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Testes Java (o Flyway aplica as migracoes a uma base vazia)
+        run: mvn -B -ntp test
+      - name: Testes SQL
+        run: bash scripts/ci-sql.sh

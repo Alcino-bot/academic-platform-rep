@@ -1,0 +1,40 @@
+# Estado do projecto
+
+Última actualização: 20 de Outubro de 2026. Última verificação com a aplicação real: 19 de Outubro de 2026.
+
+## Resumo
+
+A fundação técnica está concluída e verificada. Ainda não há interface nem administração: uma conta nova consegue registar-se, activar-se e entrar, mas não consegue fazer nada de útil, porque não existe forma de criar instituições nem de pedir vínculos.
+
+## O que existe
+
+- **Modelo de dados:** 20 migrações Flyway (V1 a V20), 26 tabelas, 3 funções (`materiais_visiveis`, `registar_falha_login`, `consumir_token`). O isolamento entre instituições é garantido pela base (chaves estrangeiras compostas).
+- **Backend:** Spring Boot 4.1.0, Java 21. Instituições com estados e transições; autenticação por sessão com cookie; instituição activa escolhida ao entrar; papéis revalidados a cada pedido; bloqueio de conta (5 tentativas, 15 minutos); protecção CSRF; registo com verificação por email.
+- **Verificação:** 58 testes Java, 235 verificações SQL (21, 38, 58, 52, 35 e 31 por ficheiro) e o guião `scripts/verificar-fluxo.ps1` (24 verificações, 0 falhas).
+
+## O que falta
+
+- Interface de utilizador (React ou Thymeleaf: decisão em aberto).
+- Administração: primeiro administrador geral, criação de instituições, aprovação de tipos.
+- Pedidos de vínculo e a sua aprovação.
+- Recuperação de palavra-passe e envio real de email (hoje só existe o modo registo).
+- Biblioteca em Java: submissão, ficheiros, revisão, pesquisa, descarga.
+- Regras académicas em Java (ver `REGRAS_PENDENTES.md`), comunicação, IA, hospedagem, cópias de segurança.
+
+## Como se verifica
+
+- `mvn test`: esperado 58 testes, 0 falhas.
+- Testes SQL: esperado 21, 38, 58, 52, 35 e 31 verificações `OK` (o script `scripts/ci-sql.sh` confere os números).
+- `scripts/verificar-fluxo.ps1`: esperado `Total de verificacoes com falha: 0`.
+- A integração contínua do GitHub corre os dois primeiros em cada alteração.
+
+## Problemas conhecidos
+
+- O arranque da aplicação demora cerca de 245 segundos no computador de desenvolvimento (4 GB de RAM, disco mecânico).
+- O envio de email só escreve a ligação no registo da aplicação. Não usar assim com pessoas reais.
+- O cookie de sessão não está marcado como seguro (`secure=false`), as sessões ficam em memória e não há limitação por endereço. Aceitável em desenvolvimento, não em produção.
+- A palavra-passe da base de dados apareceu em texto nos registos de ferramentas. Considerar comprometida e mudar.
+
+## Próximo passo
+
+Fase A (proteger e consolidar): repositório remoto, integração contínua, documentos de estado. Depois a fase B (primeiro administrador, administração, pedidos de vínculo).
