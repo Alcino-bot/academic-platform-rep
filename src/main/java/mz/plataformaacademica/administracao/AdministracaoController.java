@@ -15,10 +15,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import mz.plataformaacademica.administracao.ServicoDeTiposDeInstituicao.TipoVista;
+import mz.plataformaacademica.administracao.ServicoDeModelosOrganizacionais.ModeloDetalhe;
+import mz.plataformaacademica.administracao.ServicoDeModelosOrganizacionais.ModeloVista;
+import mz.plataformaacademica.administracao.ServicoDeModelosOrganizacionais.TipoUnidadeVista;
 import mz.plataformaacademica.autenticacao.PrincipalPad;
 import mz.plataformaacademica.comum.CredenciaisInvalidasException;
 import mz.plataformaacademica.instituicao.EstadoInstituicao;
@@ -40,6 +44,18 @@ public class AdministracaoController {
         @NotNull UUID modeloId) {
     }
 
+    public record PedidoModelo(
+        @NotNull UUID tipoInstituicaoId,
+        @NotBlank @Size(max = 100) String nome,
+        @Size(max = 2000) String descricao) {
+    }
+
+    public record PedidoTipoUnidade(
+        @NotBlank @Size(max = 100) String nome,
+        @NotNull @Min(1) Integer nivel,
+        UUID tipoPaiId) {
+    }
+
     public record PedidoEstado(@NotNull EstadoInstituicao estado) {
     }
 
@@ -48,14 +64,17 @@ public class AdministracaoController {
     }
 
     private final ServicoDeTiposDeInstituicao tipos;
+    private final ServicoDeModelosOrganizacionais modelos;
     private final ServicoDeInstituicoesAdministradas administradas;
     private final InstituicaoServico instituicoes;
 
     public AdministracaoController(
             ServicoDeTiposDeInstituicao tipos,
+            ServicoDeModelosOrganizacionais modelos,
             ServicoDeInstituicoesAdministradas administradas,
             InstituicaoServico instituicoes) {
         this.tipos = tipos;
+        this.modelos = modelos;
         this.administradas = administradas;
         this.instituicoes = instituicoes;
     }
@@ -79,6 +98,37 @@ public class AdministracaoController {
     @PostMapping("/tipos-instituicao/{id}/rejeitar")
     public TipoVista rejeitarTipo(@PathVariable UUID id) {
         return tipos.rejeitar(id, actor());
+    }
+
+    @GetMapping("/modelos-organizacionais")
+    public List<ModeloVista> listarModelos() {
+        return modelos.listar();
+    }
+
+    @GetMapping("/modelos-organizacionais/{id}")
+    public ModeloDetalhe obterModelo(@PathVariable UUID id) {
+        return modelos.obter(id);
+    }
+
+    @PostMapping("/modelos-organizacionais")
+    public ResponseEntity<ModeloVista> criarModelo(@Valid @RequestBody PedidoModelo corpo) {
+        ModeloVista criado = modelos.criar(
+            corpo.tipoInstituicaoId(), corpo.nome(), corpo.descricao());
+        return ResponseEntity.status(HttpStatus.CREATED).body(criado);
+    }
+
+    @PostMapping("/modelos-organizacionais/{id}/tipos-unidade")
+    public ResponseEntity<TipoUnidadeVista> adicionarTipoUnidade(
+            @PathVariable UUID id,
+            @Valid @RequestBody PedidoTipoUnidade corpo) {
+        TipoUnidadeVista criado = modelos.adicionarTipoUnidade(
+            id, corpo.nome(), corpo.nivel(), corpo.tipoPaiId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(criado);
+    }
+
+    @PostMapping("/modelos-organizacionais/{id}/activar")
+    public ModeloVista activarModelo(@PathVariable UUID id) {
+        return modelos.activar(id);
     }
 
     @GetMapping("/instituicoes")

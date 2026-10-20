@@ -146,8 +146,321 @@ class AdministracaoTest {
         return "{\"nome\":\"" + nome + "\",\"sigla\":\"" + sigla + "\",\"modeloId\":\"" + modelo + "\"}";
     }
 
+    private String corpoModelo(UUID tipo, String nome) {
+        return "{\"tipoInstituicaoId\":\"" + tipo + "\",\"nome\":\"" + nome + "\"}";
+    }
+
+    private String corpoTipoUnidade(String nome, int nivel, UUID pai) {
+        String paiJson = pai == null ? "null" : "\"" + pai + "\"";
+        return "{\"nome\":\"" + nome + "\",\"nivel\":" + nivel + ",\"tipoPaiId\":" + paiJson + "}";
+    }
+
+    private UUID criarModeloViaApi(MockHttpSession sessao, UUID tipo, String nome) throws Exception {
+        MvcResult resultado = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais", corpoModelo(tipo, nome));
+        assertThat(estado(resultado)).isEqualTo(201);
+        return identificador(resultado);
+    }
+
+    private UUID adicionarTipoViaApi(
+            MockHttpSession sessao, UUID modelo, String nome, int nivel, UUID pai) throws Exception {
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade(nome, nivel, pai));
+        assertThat(estado(resultado)).isEqualTo(201);
+        return identificador(resultado);
+    }
+
+    private UUID modeloActivoViaApi(MockHttpSession sessao, UUID tipo) throws Exception {
+        UUID modelo = criarModeloViaApi(sessao, tipo, "Modelo " + UUID.randomUUID());
+        adicionarTipoViaApi(sessao, modelo, "Unidade " + UUID.randomUUID(), 1, null);
+        MvcResult activar = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo + "/activar", "{}");
+        assertThat(estado(activar)).isEqualTo(200);
+        return modelo;
+    }
+
     private int contar(String sql, Object... argumentos) {
         return jdbc.queryForObject(sql, Integer.class, argumentos);
+    }
+
+    @Test
+    void administradorListaModelosOrganizacionais() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        String nome = "Modelo Listado " + UUID.randomUUID();
+        criarModeloViaApi(sessao, tipoNaBase("APROVADA"), nome);
+
+        MvcResult resultado = pedirGet(sessao, "/api/administracao/modelos-organizacionais");
+
+        assertThat(estado(resultado)).isEqualTo(200);
+        assertThat(corpo(resultado)).contains(nome);
+    }
+
+    @Test
+    void obterModeloInexistenteDa404() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+
+        MvcResult resultado = pedirGet(
+            sessao, "/api/administracao/modelos-organizacionais/" + UUID.randomUUID());
+
+        assertThat(estado(resultado)).isEqualTo(404);
+    }
+
+    @Test
+    void criarModeloDeixaRascunhoComNomeNormalizado() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID tipo = tipoNaBase("APROVADA");
+        String nome = "Modelo Novo " + UUID.randomUUID();
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais",
+            corpoModelo(tipo, "  " + nome + "  "));
+
+        assertThat(estado(resultado)).isEqualTo(201);
+        UUID modelo = identificador(resultado);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_organizacional WHERE id = ? AND tipo_instituicao_id = ? AND nome = ? AND estado = 'RASCUNHO'",
+            modelo, tipo, nome)).isEqualTo(1);
+    }
+
+    @Test
+    void criarModeloComTipoInexistenteDa404() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais",
+            corpoModelo(UUID.randomUUID(), "Modelo sem tipo"));
+
+        assertThat(estado(resultado)).isEqualTo(404);
+    }
+
+    @Test
+    void nomeDeModeloRepetidoNoMesmoTipoDa409() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID tipo = tipoNaBase("APROVADA");
+        String nome = "Modelo Repetido " + UUID.randomUUID();
+        criarModeloViaApi(sessao, tipo, nome);
+
+        MvcResult repetido = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais",
+            corpoModelo(tipo, nome.toUpperCase()));
+
+        assertThat(estado(repetido)).isEqualTo(409);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_organizacional WHERE tipo_instituicao_id = ? AND lower(nome) = lower(?)",
+            tipo, nome)).isEqualTo(1);
+    }
+
+    @Test
+    void obterModeloIncluiTiposDeUnidadeEPai() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        String nomeRaiz = "Raiz " + UUID.randomUUID();
+        UUID raiz = adicionarTipoViaApi(sessao, modelo, nomeRaiz, 1, null);
+        String nomeFilho = "Filho " + UUID.randomUUID();
+        adicionarTipoViaApi(sessao, modelo, nomeFilho, 2, raiz);
+
+        MvcResult resultado = pedirGet(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo);
+
+        assertThat(estado(resultado)).isEqualTo(200);
+        assertThat(corpo(resultado)).contains(nomeRaiz, nomeFilho, raiz.toString());
+    }
+
+    @Test
+    void adicionarTipoDeUnidadeDeNivelUmSemPai() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        String nome = "Raiz " + UUID.randomUUID();
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade(nome, 1, null));
+
+        assertThat(estado(resultado)).isEqualTo(201);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ? AND nome = ? AND nivel = 1 AND tipo_pai_id IS NULL",
+            modelo, nome)).isEqualTo(1);
+    }
+
+    @Test
+    void adicionarTipoDeUnidadeFilhoMantemHierarquia() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        UUID pai = adicionarTipoViaApi(sessao, modelo, "Pai " + UUID.randomUUID(), 1, null);
+        String nome = "Filho " + UUID.randomUUID();
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade(nome, 2, pai));
+
+        assertThat(estado(resultado)).isEqualTo(201);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ? AND nome = ? AND nivel = 2 AND tipo_pai_id = ?",
+            modelo, nome, pai)).isEqualTo(1);
+    }
+
+    @Test
+    void adicionarTipoDeUnidadeComPaiDeOutroModeloDa404() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        UUID outroModelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Outro " + UUID.randomUUID());
+        UUID pai = adicionarTipoViaApi(sessao, outroModelo, "Pai " + UUID.randomUUID(), 1, null);
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade("Filho " + UUID.randomUUID(), 2, pai));
+
+        assertThat(estado(resultado)).isEqualTo(404);
+        assertThat(contar("SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ?", modelo)).isEqualTo(0);
+    }
+
+    @Test
+    void adicionarTipoDeUnidadeComNivelQueNaoSegueOPaiDa422() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        UUID pai = adicionarTipoViaApi(sessao, modelo, "Pai " + UUID.randomUUID(), 1, null);
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade("Filho " + UUID.randomUUID(), 3, pai));
+
+        assertThat(estado(resultado)).isEqualTo(422);
+        assertThat(contar("SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ?", modelo)).isEqualTo(1);
+    }
+
+    @Test
+    void adicionarTipoAcimaDoNivelUmSemPaiDa422() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade("Filho " + UUID.randomUUID(), 2, null));
+
+        assertThat(estado(resultado)).isEqualTo(422);
+        assertThat(contar("SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ?", modelo)).isEqualTo(0);
+    }
+
+    @Test
+    void adicionarTipoDeNivelUmComPaiDa422() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        UUID pai = adicionarTipoViaApi(sessao, modelo, "Pai " + UUID.randomUUID(), 1, null);
+
+        MvcResult resultado = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade("Outra raiz " + UUID.randomUUID(), 1, pai));
+
+        assertThat(estado(resultado)).isEqualTo(422);
+        assertThat(contar("SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ?", modelo)).isEqualTo(1);
+    }
+
+    @Test
+    void adicionarTipoDeUnidadeDuplicadoDa409() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        String nome = "Unidade " + UUID.randomUUID();
+        adicionarTipoViaApi(sessao, modelo, nome, 1, null);
+
+        MvcResult repetido = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade(nome.toUpperCase(), 1, null));
+
+        assertThat(estado(repetido)).isEqualTo(409);
+        assertThat(contar("SELECT count(*) FROM modelo_tipo_unidade WHERE modelo_id = ?", modelo)).isEqualTo(1);
+    }
+
+    @Test
+    void activarModeloSemTiposDeUnidadeDa422() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+
+        MvcResult resultado = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo + "/activar", "{}");
+
+        assertThat(estado(resultado)).isEqualTo(422);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_organizacional WHERE id = ? AND estado = 'RASCUNHO'", modelo)).isEqualTo(1);
+    }
+
+    @Test
+    void activarModeloDeTipoNaoAprovadoDa422() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("PENDENTE"), "Modelo " + UUID.randomUUID());
+        adicionarTipoViaApi(sessao, modelo, "Unidade " + UUID.randomUUID(), 1, null);
+
+        MvcResult resultado = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo + "/activar", "{}");
+
+        assertThat(estado(resultado)).isEqualTo(422);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_organizacional WHERE id = ? AND estado = 'RASCUNHO'", modelo)).isEqualTo(1);
+    }
+
+    @Test
+    void activarModeloValidoPermiteCriarInstituicao() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        adicionarTipoViaApi(sessao, modelo, "Unidade " + UUID.randomUUID(), 1, null);
+
+        MvcResult activar = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo + "/activar", "{}");
+        MvcResult instituicao = pedirPost(
+            sessao,
+            "/api/administracao/instituicoes",
+            corpoInstituicao(
+                "Instituicao " + UUID.randomUUID(),
+                "M" + UUID.randomUUID().toString().substring(0, 8),
+                modelo));
+
+        assertThat(estado(activar)).isEqualTo(200);
+        assertThat(estado(instituicao)).isEqualTo(201);
+    }
+
+    @Test
+    void activarModeloRejeitaHierarquiaInvalidaNaBase() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = criarModeloViaApi(sessao, tipoNaBase("APROVADA"), "Modelo " + UUID.randomUUID());
+        UUID pai = adicionarTipoViaApi(sessao, modelo, "Pai " + UUID.randomUUID(), 1, null);
+        UUID filho = adicionarTipoViaApi(sessao, modelo, "Filho " + UUID.randomUUID(), 2, pai);
+        jdbc.update("UPDATE modelo_tipo_unidade SET nivel = 4 WHERE id = ?", filho);
+
+        MvcResult resultado = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo + "/activar", "{}");
+
+        assertThat(estado(resultado)).isEqualTo(422);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_organizacional WHERE id = ? AND estado = 'RASCUNHO'", modelo)).isEqualTo(1);
+    }
+
+    @Test
+    void modeloActivoNaoPodeSerActivadoNovamenteNemAlterado() throws Exception {
+        MockHttpSession sessao = entrar(emailAdministrador);
+        UUID modelo = modeloActivoViaApi(sessao, tipoNaBase("APROVADA"));
+
+        MvcResult activarNovamente = pedirPost(
+            sessao, "/api/administracao/modelos-organizacionais/" + modelo + "/activar", "{}");
+        MvcResult adicionar = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais/" + modelo + "/tipos-unidade",
+            corpoTipoUnidade("Outra " + UUID.randomUUID(), 1, null));
+
+        assertThat(estado(activarNovamente)).isEqualTo(422);
+        assertThat(estado(adicionar)).isEqualTo(422);
+        assertThat(contar(
+            "SELECT count(*) FROM modelo_organizacional WHERE id = ? AND estado = 'ACTIVO'", modelo)).isEqualTo(1);
     }
 
     @Test
@@ -163,6 +476,7 @@ class AdministracaoTest {
 
         assertThat(estado(pedirGet(sessao, "/api/administracao/tipos-instituicao"))).isEqualTo(403);
         assertThat(estado(pedirGet(sessao, "/api/administracao/instituicoes"))).isEqualTo(403);
+        assertThat(estado(pedirGet(sessao, "/api/administracao/modelos-organizacionais"))).isEqualTo(403);
     }
 
     @Test
@@ -174,10 +488,17 @@ class AdministracaoTest {
 
         MvcResult criar = pedirPost(sessao, "/api/administracao/instituicoes", corpoInstituicao(nome, "IT", modelo));
         MvcResult aprovar = pedirPost(sessao, "/api/administracao/tipos-instituicao/" + tipoPendente + "/aprovar", "{}");
+        MvcResult criarModelo = pedirPost(
+            sessao,
+            "/api/administracao/modelos-organizacionais",
+            corpoModelo(tipoPendente, "Modelo " + UUID.randomUUID()));
 
         assertThat(estado(criar)).isEqualTo(403);
         assertThat(estado(aprovar)).isEqualTo(403);
+        assertThat(estado(criarModelo)).isEqualTo(403);
         assertThat(contar("SELECT count(*) FROM instituicao WHERE nome = ?", nome)).isEqualTo(0);
+        assertThat(contar("SELECT count(*) FROM modelo_organizacional WHERE tipo_instituicao_id = ?", tipoPendente))
+            .isEqualTo(0);
         assertThat(contar("SELECT count(*) FROM tipo_instituicao WHERE id = ? AND estado = 'PENDENTE'", tipoPendente))
             .isEqualTo(1);
     }
@@ -193,6 +514,16 @@ class AdministracaoTest {
 
         assertThat(estado(resultado)).isEqualTo(403);
         assertThat(contar("SELECT count(*) FROM tipo_instituicao WHERE nome = 'Sem Csrf'")).isEqualTo(0);
+
+        UUID tipo = tipoNaBase("APROVADA");
+        MvcResult criarModelo = mvc.perform(post("/api/administracao/modelos-organizacionais")
+            .session(sessao)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(corpoModelo(tipo, "Sem Csrf Modelo"))).andReturn();
+
+        assertThat(estado(criarModelo)).isEqualTo(403);
+        assertThat(contar("SELECT count(*) FROM modelo_organizacional WHERE tipo_instituicao_id = ?", tipo))
+            .isEqualTo(0);
     }
 
     @Test
