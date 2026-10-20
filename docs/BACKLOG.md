@@ -6,12 +6,12 @@ Ordem de prioridade. Cada item tem o critério de pronto.
 
 1. Repositório remoto privado no GitHub com todo o histórico. Pronto quando: um clone limpo noutra pasta existe e abre.
 2. Mudar a palavra-passe da base de dados e guardá-la fora do repositório. Pronto quando: a antiga deixou de funcionar.
-3. Integração contínua verde. Pronto quando: a execução "Testes" do GitHub termina com sucesso, com 58 testes Java e as 6 verificações SQL.
+3. Integração contínua verde. Pronto quando: a execução "Testes" do GitHub termina com sucesso, com 73 testes Java e as 6 verificações SQL.
 4. Clone limpo noutra máquina arranca e passa nos testes seguindo só o `README.md`.
 
 ## Fase B: plataforma operável
 
-5. Primeiro administrador geral criado por configuração no arranque. Pronto quando: existe um administrador que entra sem a base ser tocada à mão.
+5. (feito) Primeiro administrador geral criado por configuração no arranque. Pronto quando: existe um administrador que entra sem a base ser tocada à mão.
 6. Administração: criar instituições, aprovar ou rejeitar tipos de instituição, mudar estados. Pronto quando: um administrador faz o ciclo completo só pela aplicação.
 7. Pedidos de vínculo e aprovação pelo administrador da instituição. Pronto quando: uma pessoa nova regista-se, pede um vínculo, é aprovada e entra numa instituição.
 8. Recuperação de palavra-passe (reutiliza a tabela de tokens). Pronto quando: o fluxo completo está testado, incluindo a expiração e o uso único.

@@ -21,3 +21,4 @@
 - O registo responde sempre igual, exista ou não a conta (não revela que emails estão registados).
 - Palavra-passe: mínimo de 10 caracteres e máximo de 72 bytes (limite do BCrypt).
 - O envio de email está atrás da interface EnviadorDeEmail; por agora só existe o modo registo (a ligação aparece no registo da aplicação).
+- Primeiro administrador geral criado no arranque (20 de Outubro de 2026): variáveis ADMIN_EMAIL, ADMIN_NOME e ADMIN_PALAVRA_PASSE, sem valor por omissão; a palavra-passe passa pela PoliticaDePalavraPasse. Só cria se não existir nenhum administrador geral com conta ACTIVA; se já existir, não faz nada e avisa quando as variáveis estão definidas. Variáveis parciais, palavra-passe fora da política, email inválido ou email de uma conta já existente fazem o arranque falhar (nunca se promove uma conta existente). A criação é protegida por pg_advisory_xact_lock. O arranque corre fora do perfil test. A palavra-passe e o email nunca vão para o registo.
