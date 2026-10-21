@@ -26,5 +26,6 @@ verificar T_fase3a.sql 58
 verificar T_fase3b.sql 52
 verificar T_autenticacao.sql 35
 verificar T_contas.sql 31
+verificar T_vinculos.sql 16
 
 exit $falhou

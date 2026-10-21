@@ -4,29 +4,29 @@
 
 ## Resumo
 
-A fundação técnica está concluída e verificada. Ainda não há interface. Existe o primeiro administrador geral e a administração de tipos, modelos organizacionais e instituições por API, mas uma conta nova ainda não consegue pedir um vínculo.
+A fundação técnica está concluída e verificada. Ainda não há interface. Existe o primeiro administrador geral, a administração de tipos e instituições por API, e o fluxo de pedidos de vínculo com aprovação. Os modelos organizacionais ainda só se criam por SQL.
 
 ## O que existe
 
-- **Modelo de dados:** 20 migrações Flyway (V1 a V20), 26 tabelas, 3 funções (`materiais_visiveis`, `registar_falha_login`, `consumir_token`). O isolamento entre instituições é garantido pela base (chaves estrangeiras compostas).
+- **Modelo de dados:** 21 migrações Flyway (V1 a V21), 26 tabelas, 3 funções (`materiais_visiveis`, `registar_falha_login`, `consumir_token`). O isolamento entre instituições é garantido pela base (chaves estrangeiras compostas).
 - **Backend:** Spring Boot 4.1.0, Java 21. Instituições com estados e transições; autenticação por sessão com cookie; instituição activa escolhida ao entrar; papéis revalidados a cada pedido; bloqueio de conta (5 tentativas, 15 minutos); protecção CSRF; registo com verificação por email.
 - **Primeiro administrador geral:** criado no arranque a partir de `ADMIN_EMAIL`, `ADMIN_NOME` e `ADMIN_PALAVRA_PASSE` (sem valores por omissão). Só cria se não existir nenhum administrador geral activo. Depois do primeiro arranque, retirar as variáveis.
 - **Administração (só `PAPEL_GLOBAL_ADMIN_GERAL`):** `GET` e `POST /api/administracao/tipos-instituicao`, `POST .../tipos-instituicao/{id}/aprovar` e `/rejeitar`, `GET` e `POST /api/administracao/instituicoes` (cria já ACTIVA a partir de um modelo activo e copia os tipos de unidade) e `POST .../instituicoes/{id}/estado`.
-- **Modelos organizacionais pela API:** listar e consultar modelos, criar em RASCUNHO, acrescentar tipos de unidade, validar a hierarquia e activar apenas quando o tipo de instituição está APROVADO.
-- **Verificação:** 112 testes Java previstos (18 novos nesta fatia). A tentativa local não chegou às asserções: os 39 testes de administração falharam ao carregar o contexto por falha de autenticação PostgreSQL. A regressão desta fatia e as sabotagens ainda aguardam CI. As 235 verificações SQL e as 24 do guião real passaram nas últimas execuções registadas.
+- **Vínculos:** `POST /api/vinculos/pedidos` e `GET /api/vinculos/meus` (qualquer pessoa autenticada). Administrador da instituição activa (`PAPEL_ADMIN_INSTITUICAO`): `GET /api/instituicao/vinculos?estado=`, `POST .../{id}/aprovar`, `POST .../{id}/rejeitar` (com motivo), `POST .../{id}/papeis` e `POST .../{id}/papeis/{papel}/revogar`. Administrador geral: `POST /api/administracao/instituicoes/{id}/administradores` designa o administrador de uma instituição.
+- **Verificação:** 134 testes Java, 251 verificações SQL (21, 38, 58, 52, 35, 31 e 16 por ficheiro) e o guião `scripts/verificar-fluxo.ps1` (24 verificações, 0 falhas).
 
 ## O que falta
 
 - Interface de utilizador (React ou Thymeleaf: decisão em aberto).
-- Pedidos de vínculo e a sua aprovação.
+- Administração: criar e activar modelos organizacionais pela API (hoje inserem-se por SQL).
 - Recuperação de palavra-passe e envio real de email (hoje só existe o modo registo).
 - Biblioteca em Java: submissão, ficheiros, revisão, pesquisa, descarga.
 - Regras académicas em Java (ver `REGRAS_PENDENTES.md`), comunicação, IA, hospedagem, cópias de segurança.
 
 ## Como se verifica
 
-- `mvn test`: esperado 112 testes, 0 falhas; a verificação CI desta fatia está pendente.
-- Testes SQL: esperado 21, 38, 58, 52, 35 e 31 verificações `OK` (o script `scripts/ci-sql.sh` confere os números).
+- `mvn test`: esperado 134 testes, 0 falhas.
+- Testes SQL: esperado 21, 38, 58, 52, 35, 31 e 16 verificações `OK` (o script `scripts/ci-sql.sh` confere os números).
 - `scripts/verificar-fluxo.ps1`: esperado `Total de verificacoes com falha: 0`.
 - A integração contínua do GitHub corre os dois primeiros em cada alteração.
 
@@ -39,4 +39,4 @@ A fundação técnica está concluída e verificada. Ainda não há interface. E
 
 ## Próximo passo
 
-Fase B, item 6b: concluir a validação da API de modelos organizacionais no CI e nas sabotagens; depois avançar para pedidos de vínculo e decidir como designar o primeiro `ADMIN_INSTITUICAO`.
+Fase B, item 6b: modelos organizacionais pela API (criar um modelo com os seus tipos de unidade e activá-lo), para o ciclo tipo, modelo e instituição se fazer só pela aplicação.
