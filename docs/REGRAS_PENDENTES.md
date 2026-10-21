@@ -8,7 +8,7 @@ Regras que atravessam várias tabelas e foram deixadas para o Java de propósito
 - [ ] O período da turma pertence ao ano lectivo da matrícula.
 - [ ] O período está dentro das datas do ano lectivo.
 - [ ] Os anos lectivos da mesma instituição não se sobrepõem.
-- [ ] Na hierarquia de tipos, o nível do filho é o do pai mais um.
+- [x] Na hierarquia de tipos, o nível do filho é o do pai mais um. (Modelos organizacionais: derivado ao criar e revalidado ao activar. Os tipos de unidade das instituições só nascem por cópia do modelo.)
 - [ ] O tipo da unidade pai é o tipo pai do tipo da unidade filha.
 - [ ] A capacidade da turma limita as inscrições.
 
